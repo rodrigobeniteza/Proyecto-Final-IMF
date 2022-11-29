@@ -6,7 +6,7 @@
 DECLARE start_date DATE DEFAULT '2022-10-01';
 DECLARE end_date   DATE DEFAULT '2022-10-01';
 
--- CREATE OR REPLACE TABLE `peya-food-and-groceries.group_da_food_groceries.qc_users_0_orders_user_base`
+-- CREATE OR REPLACE TABLE `peya-food-and-groceries.user_rodrigo_benitez.qc_users_0_orders_base`
 -- AS
 
 WITH searches AS (
