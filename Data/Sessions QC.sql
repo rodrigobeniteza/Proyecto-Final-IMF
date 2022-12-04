@@ -3,21 +3,21 @@
 -- Extract Datos Sesiones, Ordenes y Busquedas
 ###############################################
 
-DECLARE start_date DATE DEFAULT '2022-10-01';
-DECLARE end_date   DATE DEFAULT '2022-10-01';
+DECLARE start_date DATE DEFAULT '2022-09-01';
+DECLARE end_date   DATE DEFAULT '2022-10-31';
 
--- CREATE OR REPLACE TABLE `peya-food-and-groceries.user_rodrigo_benitez.qc_users_0_orders_base`
--- AS
+CREATE OR REPLACE TABLE `peya-food-and-groceries.user_rodrigo_benitez.qc_users_0_orders_base`
+AS
 
 WITH searches AS (
   SELECT 
-      s.date
+      DATE(s.date) as date
     , s.fullVisitorId
     , s.visitId
     , s.platform
     , s.userId
     , LOWER(hp.business_name) as businessType
-    , s.productSearched
+    , s.productSearched as search
 
   FROM `peya-bi-tools-pro.il_core.fact_searches_menu` s
 
@@ -27,6 +27,40 @@ WITH searches AS (
 
   WHERE DATE(date) BETWEEN start_date 
                        AND end_date
+
+  UNION ALL
+
+  (
+  SELECT 
+      DATE(n.date) as date
+    , n.fullvisitorid
+    , n.visitid
+    , n.platform
+    , h.user_id as userId
+    , CASE 
+        WHEN n.businessType='groceries' THEN 'market'
+        ELSE n.businessType 
+      END as businessType 
+    ,   n.search 
+
+  FROM `peya-food-and-groceries.automated_tables_reports.fact_nested_search_raw_data` n
+
+  LEFT JOIN `peya-data-origins-pro.cl_sessions.ga_sessions` h 
+    ON  n.fullVisitorId = h.fullvisitor_id
+    AND n.visitId       = h.visit_id
+    AND n.date          = h.partition_date
+    AND n.platform      = h.platform
+
+  WHERE TRUE
+    AND n.search IS NOT NULL
+    AND n.date BETWEEN start_date 
+                   AND end_date
+
+    AND h.partition_date BETWEEN start_date 
+                             AND end_date
+
+    )
+
   )
 
 , groceries_sessions AS (
@@ -36,7 +70,7 @@ WITH searches AS (
     , v.businessType
     , MAX(v.shop_list_dummy)              as shop_list_dummy
     , MAX(v.shop_details_dummy)           as shop_details_dummy
-    , MAX(s.fullVisitorId)                as search_profile
+    , MAX(CASE WHEN s.fullVisitorId is not null THEN 1 ELSE 0 END) as search_profile
     , MAX(v.product_clicked_dummy)        as product_clicked_dummy
     , MAX(v.product_choice_opened_dummy)  as product_choice_opened_dummy
     , MAX(v.add_to_cart_dummy)            as add_to_cart_dummy
@@ -139,26 +173,6 @@ WITH searches AS (
   GROUP BY 1,2,3,4,5,6,7,8,9,10,11
   )
 
-, count_sessions AS (
-  SELECT
-          user_id
-      ,   SUM(sessions) as sessions
-  FROM (
-      SELECT 
-              user_id 
-            , CONCAT(fullvisitorid, visitid, platform, date_ga) as sessionId
-            , 1 as sessions
-      FROM   `peya-bi-tools-pro.il_sessions.fact_sessions_funnel_by_verticals`  
-      WHERE 
-            partition_date BETWEEN start_date 
-                               AND end_date
-        AND Tribe = 'Groceries'
-
-      GROUP BY 1,2
-    )
-  GROUP BY 1
-  )
-
 , final AS (
   SELECT 
       gs.user_id
@@ -166,6 +180,7 @@ WITH searches AS (
     , gs.businessType
     , gs.shop_list_dummy
     , gs.shop_details_dummy
+    , gs.search_profile
     , gs.product_clicked_dummy
     , gs.product_choice_opened_dummy
     , gs.add_to_cart_dummy
@@ -205,7 +220,7 @@ WITH searches AS (
   LEFT JOIN customer_orders_LT co_lt    --------> Ordenes de QC el en PASADO
     ON gs.user_id = CAST(co_lt.user_id AS STRING)
 
-  GROUP BY 1,2,3,4,5,6,7,8,9,10,11
+  GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
   )
 
 SELECT 
@@ -219,4 +234,4 @@ SELECT
 
 FROM final f
 
-GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
