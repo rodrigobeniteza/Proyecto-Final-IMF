@@ -47,7 +47,7 @@ SELECT
   , p.name as product_name
   , pd.product_description
   , pd.gtin
-  , concat(mp.category_level_one, ' | ',   mp.category_level_two) category_level_1_2
+  , concat(mp.category_level_one, ' | ', mp.category_level_two, ' | ', IFNULL(mp.category_level_three,'')) category_level_1_2_3
 
 FROM `peya-bi-tools-pro.il_core.dim_partner` dp
 
